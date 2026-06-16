@@ -79,16 +79,12 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CONFIGURACIÓN DE SMTP PARA GMAIL
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 456  
-EMAIL_USE_TLS = False  
-EMAIL_USE_SSL = True
+# ==============================================================================
+# CONFIGURACIÓN DE EMAIL SEGURA PARA GMAIL API / DIRECT SMTP EN RENDER
+# ==============================================================================
+# Usamos el backend de memoria local de Django para desactivar sus puertos nativos.
+# El envío real se gestiona directamente encriptado desde el archivo admin.py.
+EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
-# Credenciales de envío seguro
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vicky190486@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'invhbmxvfdtsfyqv')
-
-# CORRECCIÓN: Se eliminó la letra 'e' que causaba el SyntaxError
-EMAIL_TIMEOUT = 5
+# Credenciales de envío seguro (Leídas por tu admin.py de forma directa)
+EMAIL_HOST_USER = os.environ.
