@@ -11,6 +11,8 @@ from django.db import connection  # Para comunicarnos directo con la base de dat
 from django.utils import timezone  # Para rellenar el campo actualizado_en
 from .models import Campana, EnvioCorreo
 
+
+
 @csrf_exempt
 def crear_envio_masivo(request):
     if request.method != 'POST':
@@ -24,22 +26,28 @@ def crear_envio_masivo(request):
         if not asunto or not contenido:
             return JsonResponse({'error': 'Faltan campos obligatorios (asunto o contenido)'}, status=400)
 
-        todos_los_registros = EnvioCorreo.objects.values_list('destinatario', flat=True).distinct()
-        destinatarios_reales = list(todos_los_registros)
+        # 🛠️ SEGURO Y DIRECTO: Buscamos los destinatarios usando SQL nativo para evitar problemas de Django
+        destinatarios_reales = []
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT DISTINCT destinatario FROM correos_enviocorreo')
+            rows = cursor.fetchall()
+            destinatarios_reales = [row[0] for row in rows]
 
         if not destinatarios_reales:
             return JsonResponse({'error': 'No hay ningún correo registrado en la base de datos para enviar.'}, status=400)
 
-        campana = Campana.objects.create(asunto=asunto, contenido=contenido)
+        # Guardar el registro de la campaña usando SQL nativo también para que no falle por las columnas
+        with connection.cursor() as cursor:
+            cursor.execute('''
+                INSERT INTO correos_campana (asunto, contenido) 
+                VALUES (%s, %s) RETURNING id
+            ''', [asunto, contenido])
+            campana_id = cursor.fetchone()[0]
 
-        correos_a_crear = [
-            EnvioCorreo(destinatario=correo)
-            for correo in destinatarios_reales
-        ]
-        
         enviados_con_exito = 0
         fallidos = 0
 
+        # Enviar los correos uno por uno
         for correo in destinatarios_reales:
             try:
                 send_mail(
