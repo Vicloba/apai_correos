@@ -7,8 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail                 
 from django.conf import settings                        
 from faker import Faker                                 
-from django.db import connection  # Importante para interactuar directamente con la base de datos
-from django.utils import timezone  # Requerido para enviar la fecha correcta
+from django.db import connection  # Para comunicarnos directo con la base de datos sin Django de por medio
 from .models import Campana, EnvioCorreo
 
 @csrf_exempt
@@ -224,26 +223,23 @@ def registrar_suscriptor_formulario(request):
             correo_usuario = correo_usuario.strip()
             validate_email(correo_usuario)
 
-            # Obtener la fecha y hora actual en la zona configurada en Django
-            fecha_actual = timezone.now()
-
-            # 🛠️ COMANDO SQL NATIVO CORREGIDO PARA CUMPLIR CON LAS RESTRICCIONES DE RENDER
+            # Enviar los datos puros usando SQL para saltarnos la caché errónea de Django
             with connection.cursor() as cursor:
-                # 1. Verificar si ya existe el correo
+                # 1. Comprobar que no esté duplicado el correo antes de meterlo
                 cursor.execute('SELECT 1 FROM correos_enviocorreo WHERE destinatario = %s', [correo_usuario])
                 existe = cursor.fetchone()
                 
                 if existe:
                     return JsonResponse({'mensaje': 'Este correo ya estaba registrado en nuestro sistema'}, status=200)
 
-                # 2. Insertar enviando destinatario, estado ('PENDIENTE') y fecha_registro
+                # 2. Insertar enviando ÚNICAMENTE el destinatario y el estado requerido
                 cursor.execute('''
-                    INSERT INTO correos_enviocorreo (destinatario, estado, fecha_registro) 
-                    VALUES (%s, %s, %s)
-                ''', [correo_usuario, 'PENDIENTE', fecha_actual])
+                    INSERT INTO correos_enviocorreo (destinatario, estado) 
+                    VALUES (%s, %s)
+                ''', [correo_usuario, 'PENDIENTE'])
 
             return JsonResponse({
-                'mensaje': '¡Registro exitoso! Guardado en la base de datos',
+                'mensaje': '¡Registro exitoso! Correo guardado correctamente',
                 'correo_guardado': correo_usuario
             }, status=201)
 
