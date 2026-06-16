@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Únete a mi comunidad - Práctica de Victoria</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-content: center;
+            align-items: center;
+            margin: 0;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h2 { color: #333; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; margin-bottom: 20px; }
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px border #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        input[type="email"]:focus {
+            border-color: #764ba2;
+            outline: none;
+        }
+        button {
+            background: #764ba2;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        button:hover { background: #5a377d; }
+        .mensaje { margin-top: 15px; font-weight: bold; font-size: 14px; }
+        .exito { color: #155724; background-color: #d4edda; padding: 8px; border-radius: 5px; display: block; }
+        .error { color: #721c24; background-color: #f8d7da; padding: 8px; border-radius: 5px; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>¡Únete a mi boletín! </h2>
+    <p>Esta es una página de práctica. Introduce tu correo para registrarte automáticamente en mi base de datos.</p>
+    
+    <form id="formularioRegistro">
+        <input type="email" id="correoInput" placeholder="tu-correo@gmail.com" required>
+        <button type="submit" id="btnEnviar">Registrarme</button>
+    </form>
+    
+    <div id="textoRespuesta" class="mensaje"></div>
+</div>
+
+<script>
+    document.getElementById('formularioRegistro').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const correo = document.getElementById('correoInput').value.trim();
+        const textoRespuesta = document.getElementById('textoRespuesta');
+        const btn = document.getElementById('btnEnviar');
+        
+        // --- VALIDACIÓN DE CORREO (Frontend) ---
+        const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!regexCorreo.test(correo)) {
+            textoRespuesta.className = "mensaje error";
+            textoRespuesta.innerText = " Por favor, escribe un correo electrónico válido.";
+            return;
+        }
+        
+        // Cambiar estado del botón
+        btn.innerText = "Registrando...";
+        btn.disabled = true;
+        textoRespuesta.innerText = "";
+
+        try {
+            // Por ahora le habla a tu computadora local. Al subirlo a internet cambiaremos esta URL.
+            const urlAPI = 'https://apai-correos.onrender.com/api/registro-web/';
+            
+            const respuesta = await fetch(urlAPI, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ correo: correo })
+            });
+            
+            const datos = await respuesta.json();
+            
+            if (respuesta.status === 201 || respuesta.status === 200) {
+                textoRespuesta.className = "mensaje exito";
+                textoRespuesta.innerText = "¡Gracias!";
+                document.getElementById('correoInput').value = "";
+            } else {
+                textoRespuesta.className = "mensaje error";
+                textoRespuesta.innerText = " Error: " + (datos.error || "No se pudo registrar");
+            }
+        } catch (err) {
+            textoRespuesta.className = "mensaje error";
+            textoRespuesta.innerText = " Error de conexión con el servidor.";
+            console.error(err);
+        } finally {
+            btn.innerText = "Registrarme";
+            btn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
