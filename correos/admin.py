@@ -20,7 +20,7 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
 
     # 2. PROCESAMOS EL ENVÍO POR VÍA WEB (Puerto 443 libre en Render)
     # Mandamos los datos a una pasarela HTTP libre que procesa el correo de inmediato
-    url_pasarela = "https://formspree.io/f/mnqeogww"  # Endpoint puente temporal y gratuito
+    url_pasarela = "https://formspree.io/f/xqeojgoo"  # Endpoint puente temporal y gratuito
 
     for registro in queryset:
         try:
