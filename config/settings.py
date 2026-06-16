@@ -84,7 +84,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ==============================================================================
 # Usamos el backend de memoria local de Django para desactivar sus puertos nativos.
 # El envío real se gestiona directamente encriptado desde el archivo admin.py.
+# Asegúrate de que las últimas líneas queden EXACTAMENTE así:
+
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
-# Credenciales de envío seguro (Leídas por tu admin.py de forma directa)
-EMAIL_HOST_USER = os.environ.
+# Línea 90 y 91 corregidas:
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vicky190486@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'invhbmxvfdtsfyqv')
