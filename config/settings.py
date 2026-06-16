@@ -16,7 +16,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'correos.apps.CorreosConfig',  # <-- Cambia 'correos' por esto obligatoriamente
+    'correos',  # <-- Cambia 'correos' por esto obligatoriamente
 ]
 
 MIDDLEWARE = [
