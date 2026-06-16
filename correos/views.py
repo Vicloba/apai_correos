@@ -7,7 +7,8 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail                 
 from django.conf import settings                        
 from faker import Faker                                 
-from django.db import connection  # Importante para la inyección directa segura
+from django.db import connection  # Importante para interactuar directamente con la base de datos
+from django.utils import timezone  # Requerido para enviar la fecha correcta
 from .models import Campana, EnvioCorreo
 
 @csrf_exempt
@@ -223,17 +224,23 @@ def registrar_suscriptor_formulario(request):
             correo_usuario = correo_usuario.strip()
             validate_email(correo_usuario)
 
-            # 🛠️ PASO EXTRA DE SEGURIDAD CON SQL NATIVO (EVITA ERRORES DE COLUMNAS VIEJAS EN DJANGO)
+            # Obtener la fecha y hora actual en la zona configurada en Django
+            fecha_actual = timezone.now()
+
+            # 🛠️ COMANDO SQL NATIVO CORREGIDO PARA CUMPLIR CON LAS RESTRICCIONES DE RENDER
             with connection.cursor() as cursor:
-                # Verificar si ya existe el correo
+                # 1. Verificar si ya existe el correo
                 cursor.execute('SELECT 1 FROM correos_enviocorreo WHERE destinatario = %s', [correo_usuario])
                 existe = cursor.fetchone()
                 
                 if existe:
                     return JsonResponse({'mensaje': 'Este correo ya estaba registrado en nuestro sistema'}, status=200)
 
-                # Insertar directo obligando a usar solo la columna destinatario
-                cursor.execute('INSERT INTO correos_enviocorreo (destinatario) VALUES (%s)', [correo_usuario])
+                # 2. Insertar enviando destinatario, estado ('PENDIENTE') y fecha_registro
+                cursor.execute('''
+                    INSERT INTO correos_enviocorreo (destinatario, estado, fecha_registro) 
+                    VALUES (%s, %s, %s)
+                ''', [correo_usuario, 'PENDIENTE', fecha_actual])
 
             return JsonResponse({
                 'mensaje': '¡Registro exitoso! Guardado en la base de datos',
