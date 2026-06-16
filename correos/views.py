@@ -7,7 +7,8 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail                 
 from django.conf import settings                        
 from faker import Faker                                 
-from django.db import connection  # Para comunicarnos directo con la base de datos sin Django de por medio
+from django.db import connection  # Para comunicarnos directo con la base de datos
+from django.utils import timezone  # ¡OBLIGATORIO! Para rellenar el campo actualizado_en que exige Render
 from .models import Campana, EnvioCorreo
 
 @csrf_exempt
@@ -223,20 +224,22 @@ def registrar_suscriptor_formulario(request):
             correo_usuario = correo_usuario.strip()
             validate_email(correo_usuario)
 
-            # Enviar los datos puros usando SQL para saltarnos la caché errónea de Django
+            # Generamos el tiempo actual solo para calmar la restricción de Render
+            ahora = timezone.now()
+
             with connection.cursor() as cursor:
-                # 1. Comprobar que no esté duplicado el correo antes de meterlo
+                # 1. Comprobar duplicados
                 cursor.execute('SELECT 1 FROM correos_enviocorreo WHERE destinatario = %s', [correo_usuario])
                 existe = cursor.fetchone()
                 
                 if existe:
                     return JsonResponse({'mensaje': 'Este correo ya estaba registrado en nuestro sistema'}, status=200)
 
-                # 2. Insertar enviando ÚNICAMENTE el destinatario y el estado requerido
+                # 2. Insertamos destinatario, estado y el bendito campo actualizado_en requerido
                 cursor.execute('''
-                    INSERT INTO correos_enviocorreo (destinatario, estado) 
-                    VALUES (%s, %s)
-                ''', [correo_usuario, 'PENDIENTE'])
+                    INSERT INTO correos_enviocorreo (destinatario, estado, actualizado_en) 
+                    VALUES (%s, %s, %s)
+                ''', [correo_usuario, 'PENDIENTE', ahora])
 
             return JsonResponse({
                 'mensaje': '¡Registro exitoso! Correo guardado correctamente',
