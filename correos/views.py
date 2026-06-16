@@ -31,9 +31,7 @@ def generar_correos_aleatorios(request):
         correos_falsos = []
         for _ in range(cantidad):
             correo_aleatorio = fake.email() 
-            correos_falsos.append(
-                EnvioCorreo(destinatario=correo_aleatorio)
-            )
+            correos_falsos.append(EnvioCorreo(destinatario=correo_aleatorio))
         
         EnvioCorreo.objects.bulk_create(correos_falsos)
         
@@ -52,16 +50,111 @@ def registrar_suscriptor_formulario(request):
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro al Boletín</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .card { 
+            background: white; 
+            padding: 40px 30px; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+            text-align: center; 
+            max-width: 400px; 
+            width: 100%; 
+        }
+        h2 { color: #333; margin-top: 0; margin-bottom: 10px; font-size: 26px; }
+        p { color: #666; font-size: 15px; margin-bottom: 25px; line-height: 1.5; }
+        input[type="email"] { 
+            width: 100%; 
+            padding: 14px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            margin-bottom: 20px;
+        }
+        input[type="email"]:focus { outline: none; border-color: #667eea; }
+        button { 
+            background-color: #4c51bf; 
+            color: white; 
+            border: none; 
+            padding: 14px 20px; 
+            font-size: 16px; 
+            font-weight: bold;
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+        }
+        button:hover { background-color: #434190; }
+        .status-msg { display: none; margin-top: 15px; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 500; }
+        .error { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
+    </style>
 </head>
 <body>
-    <div style="max-width:400px; margin:50px auto; text-align:center; font-family:sans-serif;">
+    <div class="card" id="formCard">
         <h2>¡Únete a nuestro Boletín!</h2>
-        <form method="POST" action="">
-            <input type="email" name="correo" placeholder="tu-correo@ejemplo.com" required style="width:100%; padding:10px; margin-bottom:10px;">
-            <button type="submit" style="padding:10px 20px; background:#4c51bf; color:white; border:none; width:100%;">Suscribirme</button>
+        <p>Ingresa tu correo electrónico para recibir las últimas actualizaciones directamente en tu bandeja de entrada.</p>
+        <form id="subscriberForm">
+            <input type="email" id="emailInput" name="correo" placeholder="tu-correo@ejemplo.com" required>
+            <button type="submit" id="submitBtn">Suscribirme</button>
         </form>
+        <div id="responseMessage" class="status-msg"></div>
     </div>
+
+    <script>
+        document.getElementById('subscriberForm').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            const email = document.getElementById('emailInput').value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+            const responseMessage = document.getElementById('responseMessage');
+            
+            const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!regexCorreo.test(email)) {
+                responseMessage.style.display = 'block';
+                responseMessage.innerText = 'Por favor, ingresa un formato de correo electrónico válido.';
+                responseMessage.className = 'status-msg error';
+                return;
+            }
+
+            submitBtn.innerText = 'Procesando...';
+            submitBtn.disabled = true;
+
+            fetch(window.location.href, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ 'correo': email })
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(res => {
+                responseMessage.style.display = 'block';
+                // CORRECCIÓN FRONTEND: Ahora acepta tanto el código 201 como el 409 o 200 de duplicado limpiamente
+                if (res.status === 201 || res.status === 200) {
+                    responseMessage.innerText = res.body.mensaje;
+                    responseMessage.className = 'status-msg';
+                    responseMessage.style.backgroundColor = '#e6fffa';
+                    responseMessage.style.color = '#234e52';
+                    document.getElementById('subscriberForm').style.display = 'none';
+                } else {
+                    responseMessage.innerText = res.body.error || res.body.mensaje || 'Ocurrió un error.';
+                    responseMessage.className = 'status-msg error';
+                    submitBtn.innerText = 'Intentar de nuevo';
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    </script>
 </body>
 </html>"""
         return HttpResponse(formulario_html)
@@ -86,12 +179,16 @@ def registrar_suscriptor_formulario(request):
             validate_email(correo_usuario)
 
             with connection.cursor() as cursor:
+                # 1. Comprobar duplicados
                 cursor.execute('SELECT 1 FROM correos_enviocorreo WHERE destinatario = %s', [correo_usuario])
                 existe = cursor.fetchone()
                 
                 if existe:
-                    return JsonResponse({'mensaje': 'Este correo ya estaba registrado en nuestro sistema'}, status=200)
+                    # CORRECCIÓN BACKEND: Cambiamos a código 400 para que el JavaScript sepa que es una advertencia
+                    # y lo pinte dentro de la alerta roja en lugar de romper la pantalla.
+                    return JsonResponse({'error': 'Este correo ya estaba registrado en nuestro sistema'}, status=400)
 
+                # 2. Buscar o crear campaña por defecto si no existe
                 cursor.execute('SELECT id FROM correos_campana ORDER BY id DESC LIMIT 1')
                 campana_row = cursor.fetchone()
                 
@@ -101,6 +198,7 @@ def registrar_suscriptor_formulario(request):
                         VALUES (%s, %s, %s) RETURNING id
                     ''', ['Campaña General', 'Campaña General', 'Contenido Inicial'])
 
+                # 3. Insertar el nuevo correo
                 cursor.execute('''
                     INSERT INTO correos_enviocorreo (destinatario) 
                     VALUES (%s)
@@ -117,25 +215,16 @@ def registrar_suscriptor_formulario(request):
             return JsonResponse({'error': str(e)}, status=500)
 
 
-# ==============================================================================
-# ¡LA FUNCIÓN QUE LE FALTABA A TU URLS.PY!
-# ==============================================================================
 @csrf_exempt
 def crear_envio_masivo(request):
-    """
-    Controlador que procesa el envío masivo a través de la API
-    enrutada en 'api/enviar-masivo/'
-    """
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido. Utiliza POST.'}, status=405)
         
     try:
-        # 1. Obtener la última campaña creada para usar su asunto y contenido
         campana = Campana.objects.order_by('-id').first()
         if not campana:
             return JsonResponse({'error': 'No hay ninguna campaña creada para enviar.'}, status=400)
             
-        # 2. Obtener todos los destinatarios de la base de datos
         destinatarios = list(EnvioCorreo.objects.values_list('destinatario', flat=True))
         if not destinatarios:
             return JsonResponse({'error': 'No hay suscriptores en la base de datos.'}, status=400)
@@ -143,12 +232,11 @@ def crear_envio_masivo(request):
         enviados = 0
         fallidos = 0
         
-        # 3. Enviar el correo uno por uno utilizando la configuración de Gmail
         for correo in destinatarios:
             try:
                 send_mail(
                     subject=campana.asunto,
-                    message="",  # Se deja vacío porque enviamos HTML
+                    message="",
                     from_email=settings.EMAIL_HOST_USER,
                     recipient_list=[correo],
                     html_message=campana.contenido,
