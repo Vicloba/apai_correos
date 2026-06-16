@@ -12,7 +12,6 @@ from django.utils import timezone  # Para rellenar el campo actualizado_en
 from .models import Campana, EnvioCorreo
 
 
-
 @csrf_exempt
 def crear_envio_masivo(request):
     if request.method != 'POST':
@@ -26,7 +25,7 @@ def crear_envio_masivo(request):
         if not asunto or not contenido:
             return JsonResponse({'error': 'Faltan campos obligatorios (asunto o contenido)'}, status=400)
 
-        # 1. Traer destinatarios con SQL Nativo puro
+        # 1. Traer destinatarios con SQL Nativo
         destinatarios_reales = []
         with connection.cursor() as cursor:
             cursor.execute('SELECT DISTINCT destinatario FROM correos_enviocorreo')
@@ -38,8 +37,9 @@ def crear_envio_masivo(request):
 
         enviados_con_exito = 0
         fallidos = 0
+        ultimo_error_gmail = None
 
-        # 2. ENVIAR CORREOS PRIMERO (Prioridad máxima)
+        # 2. ENVIAR CORREOS CON DETECTOR DE ERRORES REALES
         for correo in destinatarios_reales:
             try:
                 send_mail(
@@ -48,28 +48,33 @@ def crear_envio_masivo(request):
                     from_email=settings.EMAIL_HOST_USER,  
                     recipient_list=[correo],
                     html_message=contenido,  
-                    fail_silently=False,
+                    fail_silently=False,  # ¡No te calles nada, Django! Queremos ver el error.
                 )
                 enviados_con_exito += 1
-            except Exception:
+            except Exception as e:
                 fallidos += 1
+                ultimo_error_gmail = str(e) # Guardamos el chisme de por qué falló Gmail
 
-        # 3. Intentar guardar el registro de la campaña de forma segura
+        # Si TODOS fallaron, le avisamos al usuario qué le dolió a Gmail para no dar Error 500
+        if fallidos == len(destinatarios_reales):
+            return JsonResponse({
+                'error': 'Gmail rechazó el envío de correos.',
+                'detalle_del_error': ultimo_error_gmail,
+                'nota': 'Revisa si tu correo y contraseña de aplicación están bien puestos en Render.'
+            }, status=400)
+
+        # 3. Intentar guardar el registro de la campaña de forma silenciosa
         try:
             with connection.cursor() as cursor:
-                # Intentamos un insert ultra básico con lo mínimo
                 cursor.execute('''
                     INSERT INTO correos_campana (asunto, contenido) 
                     VALUES (%s, %s)
                 ''', [asunto, contenido])
         except Exception:
-            # Si la base de datos de campañas está rota o pide más columnas, 
-            # ignoramos el error para que la página no se caiga y te avise que los correos sí salieron.
             pass
 
         return JsonResponse({
-            'mensaje': 'Envío masivo completado exitosamente usando Gmail',
-            'total_destinatarios_encontrados': len(destinatarios_reales),
+            'mensaje': 'Proceso completado',
             'enviados_exitosamente': enviados_con_exito,
             'fallidos': fallidos
         }, status=201)
@@ -77,7 +82,8 @@ def crear_envio_masivo(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Formato JSON inválido'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+
 
 
 @csrf_exempt
