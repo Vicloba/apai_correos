@@ -53,11 +53,16 @@ WSGI_APPLICATION = 'config.wsgi.application'
 import dj_database_url
 
 
+import dj_database_url
+import os
+
+
 
 DATABASES = {
-    'default': dj_database_url.parse('postgresql://victoria:C5ukfhCktDhuThKp9KFQdG3n2SbAu6Nl@dpg-d8gqkn6k1jcs73dajjg0-a.oregon-postgres.render.com/api_db_hzbz')
+    'default': dj_database_url.config(
+        default=os.environ.get('esta es la que hemos estado poniendopostgresql://victoria:C5ukfhCktDhuThKp9KFQdG3n2SbAu6Nl@dpg-d8gqkn6k1jcs73dajjg0-a.oregon-postgres.render.com/api_db_hzbz')
+    )
 }
-
 
 
 

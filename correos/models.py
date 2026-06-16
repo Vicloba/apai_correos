@@ -10,22 +10,24 @@ class Campana(models.Model):
         return self.nombre
 
 
-# 🚨 TU MOTOR DE CONTACTOS SE QUEDA EXACTAMENTE IGUAL, INTACTO Y PROTEGIDO:
+# MOTOR DE CONTACTOS CORREGIDO: SOLO CORREO, SIN FECHAS NI ENREDOS
 class EnvioCorreo(models.Model):
+    # Definimos explícitamente que el único campo que nos importa es el correo (destinatario)
+    destinatario = models.EmailField(db_column='destinatario', primary_key=True, max_length=254)
+
     class Meta:
-        managed = False
+        managed = False  # Protege tu base de datos de Render para no alterarla desde aquí
         db_table = 'correos_enviocorreo'
 
     def __str__(self):
         try:
             from django.db import connection
             with connection.cursor() as cursor:
-                cursor.execute(f'SELECT * FROM correos_enviocorreo WHERE id = {self.id}')
+                # Buscamos directamente el correo para mostrarlo limpiamente en tu panel de Django
+                cursor.execute(f"SELECT destinatario FROM correos_enviocorreo WHERE destinatario = '{self.destinatario}'")
                 fila = cursor.fetchone()
                 if fila:
-                    for valor in fila:
-                        if valor and "@" in str(valor):
-                            return str(valor).strip()
+                    return str(fila[0]).strip()
         except Exception:
             pass
-        return f"Contacto {self.id}"
+        return str(self.destinatario)
