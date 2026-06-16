@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.conf import settings
 from django.contrib import messages
 from django.apps import apps
+from django.db import connection # <--- Conexión directa a la base de datos
 
 @admin.action(description="Enviar boletín dinámico a los seleccionados")
 def enviar_boletin_dinamico(modeladmin, request, queryset):
@@ -46,6 +47,24 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
         f"Campaña procesada. Enviados con éxito: {enviados}. Fallidos: {fallidos}.", 
         messages.SUCCESS if enviados > 0 else messages.WARNING
     )
+
+# =====================================================================
+# TRUCO DE EMERGENCIA: Forzar limpieza de base de datos desde el Admin
+# =====================================================================
+try:
+    with connection.cursor() as cursor:
+        # Borramos la tabla con columnas viejas si es que existe
+        cursor.execute("DROP TABLE IF EXISTS correos_enviocorreo CASCADE;")
+        # Creamos la tabla limpia que Django sí puede leer y escribir
+        cursor.execute("""
+            CREATE TABLE correos_enviocorreo (
+                id SERIAL PRIMARY KEY,
+                destinatario VARCHAR(254) NOT NULL
+            );
+        """)
+except Exception:
+    pass
+# =====================================================================
 
 EnvioCorreo = apps.get_model('correos', 'EnvioCorreo')
 Campana = apps.get_model('correos', 'Campana')
