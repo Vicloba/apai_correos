@@ -9,7 +9,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'vicky-django-clave-secreta-2026-xyz')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['*']
 
-# Aplicaciones instaladas
+# Aplicaciones instaladas - ¡CORREGIDO AQUÍ!
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -17,7 +17,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'correos', 
+    'correos.apps.CorreosConfig',  # <-- Forzamos a Django a cargar tu app con sus modelos
 ]
 
 MIDDLEWARE = [
@@ -52,7 +52,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # ==============================================================================
-# BASE DE DATOS CORREGIDA 
+# BASE DE DATOS LIMPIA
 # ==============================================================================
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://victoria:C5ukfhCktDhuThKp9KFQdG3n2SbAu6Nl@dpg-d8gqkn6k1jcs73dajjg0-a.oregon-postgres.render.com/api_db_hzbz')
 
@@ -87,7 +87,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ==============================================================================
-# CONFIGURACIÓN DE GMAIL TOTALMENTE PROTEGIDA
+# CONFIGURACIÓN DE GMAIL PROTEGIDA
 # ==============================================================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
@@ -98,5 +98,5 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vicky190486@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'invhbmxvfdtsfyqv')
 
-# Escudo global de 5 segundos para que Render no se caiga jamás
+# Escudo global de 5 segundos para que Render no se congele jamás
 EMAIL_TIMEOUT = 5
