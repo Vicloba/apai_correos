@@ -12,6 +12,8 @@ from django.utils import timezone  # Para rellenar el campo actualizado_en
 from .models import Campana, EnvioCorreo
 
 
+import smtplib  # <--  Para controlar que Gmail no congele el servidor
+
 @csrf_exempt
 def crear_envio_masivo(request):
     if request.method != 'POST':
@@ -35,11 +37,26 @@ def crear_envio_masivo(request):
         if not destinatarios_reales:
             return JsonResponse({'error': 'No hay ningún correo registrado en la base de datos.'}, status=400)
 
+        # 2. PROBAR CONEXIÓN RÁPIDA CON GMAIL (Máximo 5 segundos de espera)
+        try:
+            # Revisa qué puerto usas. Cambiamos a una conexión con timeout estricto
+            host = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
+            port = getattr(settings, 'EMAIL_PORT', 587)
+            
+            # Intentamos conectar rápido para ver si el servidor de Render puede hablar con Gmail
+            server = smtplib.SMTP(host, port, timeout=5)
+            server.quit()
+        except Exception as smtp_err:
+            return JsonResponse({
+                'error': 'No se pudo conectar con los servidores de Gmail.',
+                'detalle': str(smtp_err),
+                'consejo': 'Verifica el puerto (se recomienda 587) y tus credenciales en las variables de entorno de Render.'
+            }, status=500)
+
         enviados_con_exito = 0
         fallidos = 0
-        ultimo_error_gmail = None
 
-        # 2. ENVIAR CORREOS CON DETECTOR DE ERRORES REALES
+        # 3. ENVIAR CORREOS
         for correo in destinatarios_reales:
             try:
                 send_mail(
@@ -48,22 +65,13 @@ def crear_envio_masivo(request):
                     from_email=settings.EMAIL_HOST_USER,  
                     recipient_list=[correo],
                     html_message=contenido,  
-                    fail_silently=False,  # ¡No te calles nada, Django! Queremos ver el error.
+                    fail_silently=False,
                 )
                 enviados_con_exito += 1
-            except Exception as e:
+            except Exception:
                 fallidos += 1
-                ultimo_error_gmail = str(e) # Guardamos el chisme de por qué falló Gmail
 
-        # Si TODOS fallaron, le avisamos al usuario qué le dolió a Gmail para no dar Error 500
-        if fallidos == len(destinatarios_reales):
-            return JsonResponse({
-                'error': 'Gmail rechazó el envío de correos.',
-                'detalle_del_error': ultimo_error_gmail,
-                'nota': 'Revisa si tu correo y contraseña de aplicación están bien puestos en Render.'
-            }, status=400)
-
-        # 3. Intentar guardar el registro de la campaña de forma silenciosa
+        # 4. Intentar guardar campaña en segundo plano
         try:
             with connection.cursor() as cursor:
                 cursor.execute('''
@@ -74,7 +82,7 @@ def crear_envio_masivo(request):
             pass
 
         return JsonResponse({
-            'mensaje': 'Proceso completado',
+            'mensaje': 'Envío masivo procesado',
             'enviados_exitosamente': enviados_con_exito,
             'fallidos': fallidos
         }, status=201)
@@ -82,7 +90,7 @@ def crear_envio_masivo(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Formato JSON inválido'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+        return JsonResponse({'error': f'Error inesperado: {str(e)}'}, status=500)
 
 
 
