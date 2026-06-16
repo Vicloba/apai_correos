@@ -50,21 +50,15 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
-import dj_database_url
 
-
-import dj_database_url
-import os
-
-
+# ==============================================================================
+# BASE DE DATOS CORREGIDA 
+# ==============================================================================
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://victoria:C5ukfhCktDhuThKp9KFQdG3n2SbAu6Nl@dpg-d8gqkn6k1jcs73dajjg0-a.oregon-postgres.render.com/api_db_hzbz')
 
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('esta es la que hemos estado poniendopostgresql://victoria:C5ukfhCktDhuThKp9KFQdG3n2SbAu6Nl@dpg-d8gqkn6k1jcs73dajjg0-a.oregon-postgres.render.com/api_db_hzbz')
-    )
+    'default': dj_database_url.config(default=DATABASE_URL)
 }
-
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -92,10 +86,17 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CONFIGURACIÓN PARA EL ENVÍO DE CORREOS
+# ==============================================================================
+# CONFIGURACIÓN DE GMAIL TOTALMENTE PROTEGIDA
+# ==============================================================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'vicky190486@gmail.com'  
-EMAIL_HOST_PASSWORD = 'invhbmxvfdtsfyqv'
+EMAIL_PORT = 587  
+EMAIL_USE_TLS = True  
+EMAIL_USE_SSL = False
+
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vicky190486@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'invhbmxvfdtsfyqv')
+
+# Escudo global de 5 segundos para que Render no se caiga jamás
+EMAIL_TIMEOUT = 5
