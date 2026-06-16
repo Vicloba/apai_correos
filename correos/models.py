@@ -1,31 +1,62 @@
-from django.db import models
+import json
+import urllib.request
+import urllib.error
+from django.contrib import admin
+from django.conf import settings
+from django.contrib import messages
+from .models import EnvioCorreo, Campana
 
-# 1. Modelo de Campañas (Para escribir Asunto y Mensaje desde el panel de Django)
-class Campana(models.Model):
-    nombre = models.CharField(max_length=200, verbose_name="Nombre de la campaña (Uso interno)")
-    asunto = models.CharField(max_length=250, verbose_name="Asunto del correo", default="¡Boletín Informativo!")
-    contenido = models.TextField(verbose_name="Contenido del mensaje (Texto o HTML)", default="Escribe tu mensaje aquí...")
+@admin.action(description="Enviar boletín dinámico a los seleccionados")
+def enviar_boletin_dinamico(modeladmin, request, queryset):
+    # 1. Busca la última campaña guardada (Asunto y Contenido)
+    campana = Campana.objects.order_by('-id').first()
+    asunto = campana.asunto if campana else "Boletín Informativo"
+    contenido = campana.contenido if campana else "<p>Gracias por suscribirte a nuestro boletín.</p>"
 
-    class Meta:
-        verbose_name = "Campaña"
-        verbose_name_plural = "Campañas"
+    username = getattr(settings, 'EMAIL_HOST_USER', 'vicky190486@gmail.com')
+    
+    enviados = 0
+    fallidos = 0
 
-    def __str__(self):
-        return self.nombre
+    # 2. URL de Formspree (Coloca aquí tu enlace si lo cambiaste)
+    url_pasarela = "https://formspree.io/f/mnqeogww" 
 
+    for registro in queryset:
+        try:
+            payload = {
+                "_replyto": username,
+                "_subject": asunto,
+                "para": registro.destinatario,
+                "mensaje_html": contenido
+            }
+            
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(url_pasarela, data=data, method='POST')
+            req.add_header('Content-Type', 'application/json')
+            req.add_header('Accept', 'application/json')
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.status in [200, 201]:
+                    # IMPORTANTE: Aquí ya NO tocamos ninguna columna "estado"
+                    # para respetar el 'managed = False' de tu base de datos.
+                    enviados += 1
+                else:
+                    fallidos += 1
+        except Exception:
+            fallidos += 1
 
-# 2. MOTOR DE CONTACTOS OPTIMIZADO (Seguro para Render y rápido)
-class EnvioCorreo(models.Model):
-    # Definimos la llave primaria apuntando a la columna 'destinatario'
-    destinatario = models.EmailField(db_column='destinatario', primary_key=True, max_length=254)
+    modeladmin.message_user(
+        request, 
+        f"Campaña procesada. Enviados con éxito: {enviados}. Fallidos: {fallidos}.", 
+        messages.SUCCESS if enviados > 0 else messages.WARNING
+    )
 
-    class Meta:
-        managed = False  # Protege tu base de datos de Render para no alterarla desde aquí
-        db_table = 'correos_enviocorreo'
-        verbose_name = "Correo Enviado"
-        verbose_name_plural = "Envíos de Correos"
+@admin.register(EnvioCorreo)
+class EnvioCorreoAdmin(admin.ModelAdmin):
+    # Solo mostramos 'destinatario' tal como lo definiste en tu models.py
+    list_display = ('destinatario',) 
+    actions = [enviar_boletin_dinamico]
 
-    # CORRECCIÓN CRÍTICA: Eliminamos la consulta SQL cruda interna.
-    # Ahora Django mostrará el correo instantáneamente desde la memoria sin saturar a Render.
-    def __str__(self):
-        return str(self.destinatario)
+@admin.register(Campana)
+class CampanaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'asunto')
