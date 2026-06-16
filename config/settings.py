@@ -2,14 +2,12 @@ import os
 from pathlib import Path
 import dj_database_url
 
-# Ruta base del proyecto
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'vicky-django-clave-secreta-2026-xyz')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['*']
 
-# Aplicaciones instaladas - ¡CORREGIDO AQUÍ!
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -17,7 +15,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'correos.apps.CorreosConfig',  # <-- Forzamos a Django a cargar tu app con sus modelos
+    'correos', 
 ]
 
 MIDDLEWARE = [
@@ -52,12 +50,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # ==============================================================================
-# BASE DE DATOS LIMPIA
+# BASE DE DATOS CORREGIDA (Limpia y directa)
 # ==============================================================================
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://victoria:C5ukfhCktDhuThKp9KFQdG3n2SbAu6Nl@dpg-d8gqkn6k1jcs73dajjg0-a.oregon-postgres.render.com/api_db_hzbz')
-
 DATABASES = {
-    'default': dj_database_url.config(default=DATABASE_URL)
+    'default': dj_database_url.config(
+        default='postgresql://victoria:C5ukfhCktDhuThKp9KFQdG3n2SbAu6Nl@dpg-d8gqkn6k1jcs73dajjg0-a.oregon-postgres.render.com/api_db_hzbz'
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -98,5 +96,5 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vicky190486@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'invhbmxvfdtsfyqv')
 
-# Escudo global de 5 segundos para que Render no se congele jamás
+# Escudo global de 5 segundos para evitar congelamientos en Render
 EMAIL_TIMEOUT = 5
