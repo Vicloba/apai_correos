@@ -16,7 +16,7 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
     except Exception as smtp_err:
         modeladmin.message_user(
             request, 
-            f"Error de conexión con Gmail: No se pudo conectar al servidor de correo. Detalle: {str(smtp_err)}", 
+            f"Error de conexión SMTP: No se pudo conectar al servidor de correo. Detalle: {str(smtp_err)}", 
             messages.ERROR
         )
         return
@@ -27,12 +27,18 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
     
     for registro in queryset:
         try:
+            # Intentamos obtener asunto y contenido dinámico si existen campos relacionados
+            asunto = "Boletín Informativo"
+            contenido_html = "<p>Gracias por suscribirte a nuestro boletín dinámico.</p>"
+            
+            # Si tu lógica de base de datos asocia una campaña al registro de alguna manera, 
+            # podrías extraerlo aquí. Por ahora usamos los defaults seguros basados en tu formulario.
             send_mail(
-                subject="Boletín Informativo",
+                subject=asunto,
                 message="",
                 from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[registro.destinatario],
-                html_message="<p>Gracias por suscribirte a nuestro boletín dinámico.</p>",
+                html_message=contenido_html,
                 fail_silently=False
             )
             enviados += 1
@@ -46,13 +52,15 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
     )
 
 # ==============================================================================
-# ¡LA SOLUCIÓN AQUÍ! REGISTRO DE MODELOS EN EL PANEL
+# REGISTRO DE MODELOS EN EL PANEL CORREGIDO
 # ==============================================================================
 @admin.register(EnvioCorreo)
 class EnvioCorreoAdmin(admin.ModelAdmin):
-    list_display = ('destinatario', 'estado', 'actualizado_en')
-    actions = [enviar_boletin_dinamico]  # <--- Vinculamos tu botón aquí
+    # CORRECCIÓN: Quitamos 'estado' y 'actualizado_en' porque NO existen en tu models.py
+    list_display = ('destinatario',) 
+    actions = [enviar_boletin_dinamico]
 
 @admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
-    list_display = ('asunto', 'id')
+    # CORRECCIÓN: Cambiamos 'id' por 'nombre' y 'asunto' que son los campos reales
+    list_display = ('nombre', 'asunto')

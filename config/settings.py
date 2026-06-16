@@ -95,7 +95,8 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vicky190486@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'invhbmxvfdtsfyqv')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'invhbmxvfdtsfyqv
+')
 
 # Escudo global de 5 segundos para evitar congelamientos en Render
 EMAIL_TIMEOUT = 5
