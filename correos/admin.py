@@ -4,20 +4,18 @@ import urllib.error
 from django.contrib import admin
 from django.conf import settings
 from django.contrib import messages
-
-# Rompemos el ciclo: quitamos la importación de aquí arriba y la metemos abajo
+from django.apps import apps  # Truco maestro para evitar el ImportError
 
 @admin.action(description="Enviar boletín dinámico a los seleccionados")
 def enviar_boletin_dinamico(modeladmin, request, queryset):
-    # Importación diferida (dentro de la función)
-    from .models import Campana
+    # Obtenemos el modelo Campana de forma dinámica sin usar "from .models import ..."
+    CampanaModel = apps.get_model('correos', 'Campana')
     
-    campana = Campana.objects.order_by('-id').first()
+    campana = CampanaModel.objects.order_by('-id').first()
     asunto = campana.asunto if campana else "Boletín Informativo"
     contenido = campana.contenido if campana else "<p>Gracias por suscribirte a nuestro boletín.</p>"
 
     username = getattr(settings, 'EMAIL_HOST_USER', 'vicky190486@gmail.com')
-    
     enviados = 0
     fallidos = 0
     url_pasarela = "https://formspree.io/f/mnqeogww" 
@@ -50,14 +48,16 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
         messages.SUCCESS if enviados > 0 else messages.WARNING
     )
 
-# Para registrar los modelos sin activar la importación circular arriba:
-from .models import EnvioCorreo, Campana
+# Cargamos y registramos los modelos dinámicamente rompiendo el ciclo para siempre
+EnvioCorreo = apps.get_model('correos', 'EnvioCorreo')
+Campana = apps.get_model('correos', 'Campana')
 
-@admin.register(EnvioCorreo)
 class EnvioCorreoAdmin(admin.ModelAdmin):
     list_display = ('destinatario',) 
     actions = [enviar_boletin_dinamico]
 
-@admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'asunto')
+
+admin.site.register(EnvioCorreo, EnvioCorreoAdmin)
+admin.site.register(Campana, CampanaAdmin)
