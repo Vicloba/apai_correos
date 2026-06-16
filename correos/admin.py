@@ -4,18 +4,17 @@ import urllib.error
 from django.contrib import admin
 from django.conf import settings
 from django.contrib import messages
-from django.apps import apps  # Truco maestro para evitar el ImportError
+from django.apps import apps
 
 @admin.action(description="Enviar boletín dinámico a los seleccionados")
 def enviar_boletin_dinamico(modeladmin, request, queryset):
-    # Obtenemos el modelo Campana de forma dinámica sin usar "from .models import ..."
     CampanaModel = apps.get_model('correos', 'Campana')
-    
     campana = CampanaModel.objects.order_by('-id').first()
+    
     asunto = campana.asunto if campana else "Boletín Informativo"
     contenido = campana.contenido if campana else "<p>Gracias por suscribirte a nuestro boletín.</p>"
-
     username = getattr(settings, 'EMAIL_HOST_USER', 'vicky190486@gmail.com')
+    
     enviados = 0
     fallidos = 0
     url_pasarela = "https://formspree.io/f/mnqeogww" 
@@ -48,7 +47,6 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
         messages.SUCCESS if enviados > 0 else messages.WARNING
     )
 
-# Cargamos y registramos los modelos dinámicamente rompiendo el ciclo para siempre
 EnvioCorreo = apps.get_model('correos', 'EnvioCorreo')
 Campana = apps.get_model('correos', 'Campana')
 
