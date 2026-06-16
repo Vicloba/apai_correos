@@ -18,7 +18,7 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
     enviados = 0
     fallidos = 0
 
-    # 2. Tu URL de Formspree (Cambia 'mnqeogww' por tu código si ya lo creaste)
+    # 2. Tu URL de Formspree (Mantén el tuyo si ya lo cambiaste)
     url_pasarela = "https://formspree.io/f/mnqeogww" 
 
     for registro in queryset:
@@ -37,20 +37,10 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
             
             with urllib.request.urlopen(req, timeout=10) as response:
                 if response.status in [200, 201]:
-                    # CORRECCIÓN: Le asignamos el valor "Enviado" para evitar el error de NULL
-                    registro.estado = "Enviado"
-                    registro.save()
                     enviados += 1
                 else:
-                    registro.estado = "Fallido"
-                    registro.save()
                     fallidos += 1
         except Exception:
-            try:
-                registro.estado = "Fallido"
-                registro.save()
-            except:
-                pass
             fallidos += 1
 
     modeladmin.message_user(
@@ -61,7 +51,8 @@ def enviar_boletin_dinamico(modeladmin, request, queryset):
 
 @admin.register(EnvioCorreo)
 class EnvioCorreoAdmin(admin.ModelAdmin):
-    list_display = ('destinatario', 'estado') # Agregamos estado aquí para verlo en el panel
+    # Dejamos solo 'destinatario' para ir a lo seguro y evitar el error E108
+    list_display = ('destinatario',) 
     actions = [enviar_boletin_dinamico]
 
 @admin.register(Campana)
