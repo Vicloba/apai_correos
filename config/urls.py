@@ -8,3 +8,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('correos.urls')),  # Esto le dice: "ve a buscar las rutas dentro de correos"
 ]
+
+
+# CONTROL DE CAMBIO FORZADO PARA ACTUALIZAR EL PANEL DE CORREOS DE VICTORIA

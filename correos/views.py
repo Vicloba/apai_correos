@@ -12,85 +12,39 @@ from django.utils import timezone  # Para rellenar el campo actualizado_en
 from .models import Campana, EnvioCorreo
 
 
-import smtplib  # <--  Para controlar que Gmail no congele el servidor
-
 @csrf_exempt
-def crear_envio_masivo(request):
+def generar_correos_aleatorios(request):
     if request.method != 'POST':
-        return JsonResponse({'error': 'Método no permitido. Debe ser POST'}, status=405)
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
         
     try:
-        data = json.loads(request.body)
-        asunto = data.get('asunto')
-        contenido = data.get('contenido')
-
-        if not asunto or not contenido:
-            return JsonResponse({'error': 'Faltan campos obligatorios (asunto o contenido)'}, status=400)
-
-        # 1. Traer destinatarios con SQL Nativo
-        destinatarios_reales = []
-        with connection.cursor() as cursor:
-            cursor.execute('SELECT DISTINCT destinatario FROM correos_enviocorreo')
-            rows = cursor.fetchall()
-            destinatarios_reales = [row[0] for row in rows]
-
-        if not destinatarios_reales:
-            return JsonResponse({'error': 'No hay ningún correo registrado en la base de datos.'}, status=400)
-
-        # 2. PROBAR CONEXIÓN RÁPIDA CON GMAIL (Máximo 5 segundos de espera)
-        try:
-            # Revisa qué puerto usas. Cambiamos a una conexión con timeout estricto
-            host = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
-            port = getattr(settings, 'EMAIL_PORT', 587)
-            
-            # Intentamos conectar rápido para ver si el servidor de Render puede hablar con Gmail
-            server = smtplib.SMTP(host, port, timeout=5)
-            server.quit()
-        except Exception as smtp_err:
-            return JsonResponse({
-                'error': 'No se pudo conectar con los servidores de Gmail.',
-                'detalle': str(smtp_err),
-                'consejo': 'Verifica el puerto (se recomienda 587) y tus credenciales en las variables de entorno de Render.'
-            }, status=500)
-
-        enviados_con_exito = 0
-        fallidos = 0
-
-        # 3. ENVIAR CORREOS
-        for correo in destinatarios_reales:
-            try:
-                send_mail(
-                    subject=asunto,
-                    message='',  
-                    from_email=settings.EMAIL_HOST_USER,  
-                    recipient_list=[correo],
-                    html_message=contenido,  
-                    fail_silently=False,
-                )
-                enviados_con_exito += 1
-            except Exception:
-                fallidos += 1
-
-        # 4. Intentar guardar campaña en segundo plano
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute('''
-                    INSERT INTO correos_campana (asunto, contenido) 
-                    VALUES (%s, %s)
-                ''', [asunto, contenido])
-        except Exception:
-            pass
-
+        data = json.loads(request.body) if request.body else {}
+        cantidad = data.get('cantidad', 10)
+        fake = Faker()
+        
+        # Necesitamos una campaña por defecto para asociar los correos obligatoriamente
+        campana_defecto, _ = Campana.objects.get_or_create(
+            asunto="Campaña de Pruebas Aleatorias", 
+            defaults={'contenido': 'Contenido generado automáticamente'}
+        )
+        
+        correos_falsos = []
+        for _ in range(cantidad):
+            correo_aleatorio = fake.email() 
+            # Añadimos el estado y la campaña obligatoria
+            correos_falsos.append(
+                EnvioCorreo(destinatario=correo_aleatorio, estado='PENDIENTE', campana=campana_defecto)
+            )
+        
+        # ¡ESTO ES LO QUE FALTABA! Guardar en masa en la base de datos
+        EnvioCorreo.objects.bulk_create(correos_falsos)
+        
         return JsonResponse({
-            'mensaje': 'Envío masivo procesado',
-            'enviados_exitosamente': enviados_con_exito,
-            'fallidos': fallidos
+            'mensaje': f'¡Éxito! Se han creado y guardado {cantidad} correos de prueba en la base de datos.',
         }, status=201)
 
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Formato JSON inválido'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': f'Error inesperado: {str(e)}'}, status=500)
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 
