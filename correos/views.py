@@ -8,7 +8,7 @@ from django.core.mail import send_mail
 from django.conf import settings                        
 from faker import Faker                                 
 from django.db import connection  # Para comunicarnos directo con la base de datos
-from django.utils import timezone  # ¡OBLIGATORIO! Para rellenar el campo actualizado_en que exige Render
+from django.utils import timezone  # Para rellenar el campo actualizado_en
 from .models import Campana, EnvioCorreo
 
 @csrf_exempt
@@ -224,7 +224,6 @@ def registrar_suscriptor_formulario(request):
             correo_usuario = correo_usuario.strip()
             validate_email(correo_usuario)
 
-            # Generamos el tiempo actual solo para calmar la restricción de Render
             ahora = timezone.now()
 
             with connection.cursor() as cursor:
@@ -235,11 +234,25 @@ def registrar_suscriptor_formulario(request):
                 if existe:
                     return JsonResponse({'mensaje': 'Este correo ya estaba registrado en nuestro sistema'}, status=200)
 
-                # 2. Insertamos destinatario, estado y el bendito campo actualizado_en requerido
+                # 2. Buscar o crear una campaña por defecto para cumplir la restricción de Render
+                cursor.execute('SELECT id FROM correos_campana ORDER BY id DESC LIMIT 1')
+                campana_row = cursor.fetchone()
+                
+                if campana_row:
+                    campana_id = campana_row[0]
+                else:
+                    # Si no hay ninguna campaña creada en la base de datos, creamos una rápida
+                    cursor.execute('''
+                        INSERT INTO correos_campana (asunto, contenido) 
+                        VALUES (%s, %s) RETURNING id
+                    ''', ['Campaña General', 'Contenido Inicial'])
+                    campana_id = cursor.fetchone()[0]
+
+                # 3. Insertar enviando destinatario, estado, actualizado_en y campana_id
                 cursor.execute('''
-                    INSERT INTO correos_enviocorreo (destinatario, estado, actualizado_en) 
-                    VALUES (%s, %s, %s)
-                ''', [correo_usuario, 'PENDIENTE', ahora])
+                    INSERT INTO correos_enviocorreo (destinatario, estado, actualizado_en, campana_id) 
+                    VALUES (%s, %s, %s, %s)
+                ''', [correo_usuario, 'PENDIENTE', ahora, campana_id])
 
             return JsonResponse({
                 'mensaje': '¡Registro exitoso! Correo guardado correctamente',
