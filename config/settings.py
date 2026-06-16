@@ -8,6 +8,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'vicky-django-clave-secreta-2026-xyz')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['*']
 
+# Aplicaciones instaladas
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -15,7 +16,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'correos', 
+    'correos.apps.CorreosConfig',  # <-- Cambia 'correos' por esto obligatoriamente
 ]
 
 MIDDLEWARE = [
